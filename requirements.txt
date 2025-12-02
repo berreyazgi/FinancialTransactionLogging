@@ -1,0 +1,10 @@
+# API ve Worker için
+fastapi
+uvicorn[standard] 
+pydantic 
+kafka-python 
+sqlalchemy 
+psycopg2-binary # PostgreSQL bağlantısı için gerekli
+
+# Seed (Veri Yükleme) için
+pandas
