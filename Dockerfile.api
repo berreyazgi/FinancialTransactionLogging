@@ -1,0 +1,16 @@
+# Python 3.10 tabanlı bir imaj kullan
+FROM python:3.10-slim
+WORKDIR /app
+
+# 1. requirements.txt'yi kopyala
+COPY requirements.txt .
+
+# 2. Kütüphaneleri yükle
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 2. Geri kalan kodları kopyala
+COPY . /app
+
+# Uygulamayı başlatan komut
+# main.py dosyasında 'app' adında bir Uvicorn uygulaması başlatılır.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
