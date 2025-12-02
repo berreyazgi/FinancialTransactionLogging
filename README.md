@@ -1,151 +1,123 @@
 Event-Driven Financial Transaction Logging System
 
-This project implements a mandatory 3-tier/layered architecture (API, Messaging, Data) for the SENG315/451 course, focusing on an Asynchronous (Event-Driven) Microservice design for reliable financial transaction logging.
+This project is an event-driven, asynchronous financial transaction logging system built with FastAPI, Apache Kafka, and PostgreSQL.
+It consists of three main components:
 
-PROJECT GOAL AND ARCHITECTURE
+API Service (FastAPI Producer): Receives transactions and publishes Kafka events.
 
-The primary goal is to demonstrate a scalable and resilient system by utilizing Apache Kafka as a message queue, preventing direct synchronous writes to the database from the API layer.
+Kafka Messaging Layer: Queues events for asynchronous processing.
 
-Core Architecture: Asynchronous Flow
-
-The system operates as a robust, non-blocking pipeline between the following components:
-
-[API] FastAPI (Producer): Receives the transaction request (POST) and immediately sends the data to Kafka. Returns an instant 202 Accepted response.
-
-[Messaging] Apache Kafka: Acts as the central event broker, securely holding the transaction message in a queue.
-
-[Worker] Python Consumer: Continuously monitors the Kafka queue, processes the message, and performs the heavy database operation.
-
-[Data] PostgreSQL & SQLAlchemy: Provides persistent data management using an Object-Relational Mapper (ORM).
-
-TECHNOLOGIES AND LAYERS
-
-Layer
-
-Technology
-
-Description
-
-API Layer
-
-Python FastAPI & Pydantic
-
-Provides the RESTful interface, handles request validation, and acts as the Kafka Producer.
-
-Messaging Layer
-
-Apache Kafka
-
-Ensures asynchronous, high-throughput, and fault-tolerant communication between services.
-
-Data Layer
-
-PostgreSQL & SQLAlchemy
-
-SQL database engine and ORM used for persistent storage and data query (read operations).
-
-Simulation
-
-Pandas & Requests
-
-Used to read CSV data and simulate realistic high-volume transaction traffic to the API.
-
-Infrastructure
-
-Docker & Docker Compose
-
-Manages, isolates, and orchestrates all 5 services (API, Worker, Kafka, Zookeeper, DB).
-
-⚙️ SETUP AND EXECUTION
+Worker Service (Python Consumer): Consumes messages from Kafka and writes to PostgreSQL.
 
 Prerequisites
 
-Docker Desktop: Must be installed and running.
+Before you begin, ensure you have the following installed:
 
-paysim.csv: The simulation dataset file must be present in the project's root directory.
+Docker Desktop
 
-Python Code: Ensure main.py, worker.py, database.py, and seed_data.py are present.
+Python 3.10+ (only needed if you will simulate traffic manually)
 
-Step-by-Step Execution
+paysim.csv dataset placed in the project root directory
 
-Build and Start All Services: This command builds the Python image and starts all 5 containers (Postgres, Zookeeper, Kafka, API, Worker).
+Getting Started
+1. Clone the Repository
+git clone <repository-url>
+cd seng315
+
+2. Configure Environment & Database
+
+All database and Kafka configurations are managed inside Docker Compose and database.py.
+
+Your PostgreSQL connection string (internal Docker network) must be:
+
+# database.py
+SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgres:5432/financedb"
+
+
+Ensure the following files exist in the root directory:
+
+main.py (API Producer)
+
+worker.py (Kafka Consumer)
+
+database.py
+
+seed_data.py
+
+docker-compose.yml
+
+paysim.csv
+
+Running the Application
+1. Start Infrastructure
+
+Starts all required services: Postgres, Zookeeper, Kafka, API, Worker.
 
 docker-compose up --build -d
 
+2. Seed Initial Data
 
-Seed the Database (Initial Data): Load the initial 100 transactions from the CSV into PostgreSQL.
+Seeds the database with 100 initial transactions for reporting tests.
 
 docker-compose exec api python seed_data.py
 
-
-Attach the Worker: Start the consumer process which listens to Kafka and writes to the DB.
-
+3. Start the Worker (Kafka Consumer)
 docker-compose exec worker python worker.py
 
 
-(Note: Use docker-compose logs -f worker in a separate terminal to view the process logs in real-time.)
+(You can also run docker-compose logs -f worker in another terminal to follow real-time logs.)
 
-TESTING SCENARIOS
+Testing
+1. Read/Reporting Test
 
-The API automatically exposes interactive documentation via Swagger UI.
+Tests the synchronous reporting endpoint from the database.
 
-1. Read/Reporting Control (Data Layer Validation)
+Open:
 
-Tests the Data Layer's ability to be queried directly (Synchronous read operation).
+GET http://localhost:8000/reports
 
-Action
 
-Command / URL
+Expected Output:
 
-Expected Result
+A list of 100 historical transactions loaded by seed_data.py.
 
-View Report
+2. Asynchronous Transaction Flow Test
 
-GET on http://localhost:8000/reports
+Go to Swagger UI:
 
-A list of 100 transactions with status: Historical (from seed_data.py) must be displayed.
+http://localhost:8000/docs
 
-2. Live Transaction Flow (Asynchronous POST Test)
 
-Tests the core Event-Driven Pipeline (API ➡️ Kafka ➡️ Worker ➡️ DB).
+Send a POST request to /transaction.
 
-Step
+Expected Behavior:
 
-Action
-
-Observation
-
-Expected Result
-
-A. Send Request
-
-Use Swagger UI (POST /transaction) and send valid JSON data.
-
-API Logs (Terminal)
-
-Must return a non-blocking 202 Accepted status immediately.
-
-B. Process
-
-Wait 3-5 seconds.
-
-Worker Logs
-
-Must show Mesaj Yakalandı and ✅ DB'ye Kaydedildi! logs.
-
-C. Verify
-
-Re-run GET /reports.
-
-Browser
-
-The newly posted transaction must appear with status: Completed.
-
+Step	Layer	Expected Result
+A. Send POST	API Layer	Returns 202 Accepted instantly (non-blocking).
+B. Worker	Kafka Consumer	Logs: “Message Received” and “DB Committed”.
+C. Verify	Reporting	New transaction appears as Completed.
 3. High-Volume Simulation (Optional)
 
-Run the simulation script to test Kafka's queueing and the Worker's parallel processing capabilities.
+If you want to simulate heavy API traffic using the CSV file:
 
 python simulate.py
 
 
-(Observe the Worker log window: Transactions should be processed sequentially and recorded successfully.)
+You should see the Worker processing messages continuously and recording them in PostgreSQL.
+
+Architecture
+
+API (FastAPI)
+Receives requests and immediately publishes events to Kafka.
+
+Messaging (Apache Kafka)
+Handles high-throughput, persistent, fault-tolerant message delivery.
+
+Worker (Python Consumer)
+Listens to Kafka, processes events, and performs DB writes.
+
+Data Layer (PostgreSQL + SQLAlchemy)
+Used for persistent storage and read/report operations.
+
+Infrastructure (Docker Compose)
+Orchestrates all containers and internal networking.
